@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BBN IntelliStock — Barbeque Nation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #0f0e0d;
+    --bg2: #1a1814;
+    --bg3: #242118;
+    --card: #1e1c19;
+    --border: rgba(255,200,100,0.12);
+    --border2: rgba(255,200,100,0.22);
+    --amber: #e8a020;
+    --amber2: #f5c060;
+    --ember: #d45a1a;
+    --text: #f0ead8;
+    --muted: #8a8070;
+    --muted2: #c0b090;
+    --success: #4aba7a;
+    --danger: #e04545;
+    --warn: #e8a020;
+    --info: #4a9ade;
+    --font: 'Instrument Sans', sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+    --display: 'Syne', sans-serif;
+    --rad: 10px;
+    --rad2: 16px;
+  }
+  .light {
+    --bg: #faf7f2;
+    --bg2: #f2ede3;
+    --bg3: #e8e1d4;
+    --card: #ffffff;
+    --border: rgba(160,100,20,0.15);
+    --border2: rgba(160,100,20,0.3);
+    --amber: #b87010;
+    --amber2: #8a5008;
+    --ember: #c04010;
+    --text: #1a1208;
+    --muted: #7a6a50;
+    --muted2: #503a20;
+    --success: #1a7a45;
+    --danger: #b02020;
+    --warn: #906010;
+    --info: #1a60b0;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; min-height: 100vh; transition: background 0.3s, color 0.3s; }
+  
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px; height: 56px;
+    background: var(--bg2); border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-flame { width: 28px; height: 28px; position: relative; }
+  .logo-flame svg { width: 28px; height: 28px; }
+  .logo-text { font-family: var(--display); font-size: 17px; font-weight: 700; color: var(--amber); letter-spacing: -0.3px; }
+  .logo-sub { font-size: 10px; color: var(--muted); font-family: var(--mono); letter-spacing: 1px; text-transform: uppercase; }
+  
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .outlet-tag { font-size: 11px; font-family: var(--mono); color: var(--muted); background: var(--bg3); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; }
+  .live-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--success); font-family: var(--mono); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(1.3)} }
+  .theme-btn { background: var(--bg3); border: 1px solid var(--border); color: var(--muted2); width: 34px; height: 34px; border-radius: 8px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .theme-btn:hover { border-color: var(--amber); color: var(--amber); }
+  
+  .main { display: grid; grid-template-columns: 1fr 360px; gap: 0; height: calc(100vh - 56px); }
+  .left-panel { overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+  .right-panel { border-left: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg2); }
+  
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--rad2); padding: 16px 18px; cursor: default; transition: border-color 0.2s; }
+  .metric-card:hover { border-color: var(--border2); }
+  .metric-label { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .metric-val { font-family: var(--display); font-size: 28px; font-weight: 700; line-height: 1; }
+  .metric-delta { font-size: 11px; margin-top: 6px; font-family: var(--mono); }
+  .up { color: var(--danger); } .down { color: var(--success); } .neutral { color: var(--muted); }
+  
+  /* Section headers */
+  .sec-hdr { display: flex; align-items: center; justify-content: space-between; }
+  .sec-title { font-family: var(--display); font-size: 15px; font-weight: 600; color: var(--text); }
+  .sec-actions { display: flex; gap: 8px; }
+  
+  /* Buttons */
+  .btn { padding: 7px 14px; border-radius: 8px; font-size: 12px; font-family: var(--font); font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: transparent; color: var(--muted2); transition: all 0.2s; white-space: nowrap; }
+  .btn:hover { background: var(--bg3); color: var(--text); }
+  .btn-primary { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+  .btn-primary:hover { background: var(--amber2); border-color: var(--amber2); }
+  .btn-danger { border-color: var(--danger); color: var(--danger); }
+  .btn-danger:hover { background: rgba(224,69,69,0.1); }
+  .btn-success { border-color: var(--success); color: var(--success); }
+  .btn-success:hover { background: rgba(74,186,122,0.1); }
+  
+  /* Inventory table */
+  .inv-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--rad2); overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--bg3); }
+  thead th { padding: 10px 14px; text-align: left; font-size: 10px; font-family: var(--mono); color: var(--muted); letter-spacing: 0.8px; text-transform: uppercase; font-weight: 500; white-space: nowrap; }
+  tbody tr { border-top: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:hover { background: var(--bg3); }
+  tbody td { padding: 11px 14px; font-size: 13px; vertical-align: middle; }
+  .item-name { font-weight: 500; color: var(--text); }
+  .item-cat { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .stock-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .stock-bar { height: 5px; border-radius: 3px; background: var(--bg3); width: 80px; overflow: hidden; flex-shrink: 0; }
+  .stock-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+  .stock-val { font-family: var(--mono); font-size: 12px; color: var(--muted2); min-width: 60px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 10px; font-family: var(--mono); font-weight: 500; }
+  .badge-crit { background: rgba(224,69,69,0.15); color: var(--danger); border: 1px solid rgba(224,69,69,0.3); }
+  .badge-warn { background: rgba(232,160,32,0.15); color: var(--warn); border: 1px solid rgba(232,160,32,0.3); }
+  .badge-ok { background: rgba(74,186,122,0.1); color: var(--success); border: 1px solid rgba(74,186,122,0.25); }
+  .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .action-btn { padding: 4px 10px; font-size: 10px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; font-family: var(--mono); transition: all 0.15s; }
+  .action-btn:hover { border-color: var(--amber); color: var(--amber); }
+  
+  /* Charts row */
+  .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--rad2); padding: 18px; }
+  .chart-title { font-family: var(--display); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .chart-sub { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 16px; }
+  
+  /* Alerts */
+  .alert-list { display: flex; flex-direction: column; gap: 8px; }
+  .alert-item { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; border: 1px solid; }
+  .alert-item.crit { background: rgba(224,69,69,0.08); border-color: rgba(224,69,69,0.25); }
+  .alert-item.warn { background: rgba(232,160,32,0.08); border-color: rgba(232,160,32,0.25); }
+  .alert-item.info { background: rgba(74,154,222,0.08); border-color: rgba(74,154,222,0.25); }
+  .alert-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .alert-text { font-size: 12px; line-height: 1.5; }
+  .alert-text strong { display: block; font-weight: 600; margin-bottom: 2px; }
+  .alert-text.crit strong { color: var(--danger); }
+  .alert-text.warn strong { color: var(--warn); }
+  .alert-text.info strong { color: var(--info); }
+  
+  /* AI Chat */
+  .ai-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .ai-title { font-family: var(--display); font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .ai-badge { font-size: 9px; font-family: var(--mono); background: rgba(232,160,32,0.2); color: var(--amber); padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(232,160,32,0.3); }
+  .ai-model { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+  
+  .chat-msgs { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+  .msg { display: flex; flex-direction: column; gap: 4px; }
+  .msg-role { font-size: 9px; font-family: var(--mono); color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
+  .msg-bubble { padding: 10px 13px; border-radius: 10px; font-size: 13px; line-height: 1.55; }
+  .msg.ai .msg-bubble { background: var(--bg3); border: 1px solid var(--border); color: var(--text); border-radius: 3px 10px 10px 10px; }
+  .msg.user .msg-bubble { background: rgba(232,160,32,0.15); border: 1px solid rgba(232,160,32,0.25); color: var(--text); border-radius: 10px 3px 10px 10px; align-self: flex-end; }
+  .msg.user { align-items: flex-end; }
+  .msg.ai { align-items: flex-start; }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite; }
+  .typing span:nth-child(2){animation-delay:.2s} .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:0.2}40%{opacity:1}}
+  
+  .chat-input-wrap { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .quick-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .quick-btn { font-size: 10px; font-family: var(--mono); padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .quick-btn:hover { border-color: var(--amber); color: var(--amber); background: rgba(232,160,32,0.08); }
+  .input-row { display: flex; gap: 8px; }
+  .chat-inp { flex: 1; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 9px 13px; border-radius: 8px; font-size: 13px; font-family: var(--font); outline: none; transition: border-color 0.2s; }
+  .chat-inp:focus { border-color: var(--amber); }
+  .send-btn { background: var(--amber); border: none; color: var(--bg); width: 36px; height: 36px; border-radius: 8px; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; flex-shrink: 0; }
+  .send-btn:hover { background: var(--amber2); }
+  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--rad2); padding: 28px; max-width: 580px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal-title { font-family: var(--display); font-size: 18px; font-weight: 700; color: var(--amber); margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-bottom: 20px; }
+  .reco-item { padding: 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); margin-bottom: 10px; }
+  .reco-item-title { font-weight: 600; font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .reco-item-body { font-size: 12px; color: var(--muted2); line-height: 1.6; }
+  .saving-tag { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 20px; background: rgba(74,186,122,0.15); color: var(--success); border: 1px solid rgba(74,186,122,0.3); }
+  .modal-close { float: right; background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+  .modal-close:hover { color: var(--text); border-color: var(--border2); }
+  
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--bg2); border: 1px solid var(--amber); color: var(--amber); font-family: var(--mono); font-size: 12px; padding: 10px 20px; border-radius: 8px; z-index: 300; transition: transform 0.3s; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; background: var(--bg3); padding: 3px; border-radius: 8px; }
+  .tab { padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; color: var(--muted); border: none; background: transparent; font-family: var(--font); transition: all 0.2s; }
+  .tab.active { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  
+  @media (max-width: 1100px) { .main { grid-template-columns: 1fr; } .right-panel { height: 400px; border-left: none; border-top: 1px solid var(--border); } }
+</style>
+</head>
+<body class="">
+
+<div class="topbar">
+  <div class="logo">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <path d="M14 2C14 2 8 8 8 15C8 18.3 10.7 21 14 21C17.3 21 20 18.3 20 15C20 8 14 2 14 2Z" fill="#e8a020" opacity="0.9"/>
+      <path d="M14 8C14 8 10 12 10 16C10 18.2 11.8 20 14 20C16.2 20 18 18.2 18 16C18 12 14 8 14 8Z" fill="#d45a1a"/>
+      <path d="M14 14C14 14 12 16 12 17.5C12 18.3 12.9 19 14 19C15.1 19 16 18.3 16 17.5C16 16 14 14 14 14Z" fill="#f5c060"/>
+      <rect x="6" y="23" width="16" height="3" rx="1.5" fill="#8a8070" opacity="0.6"/>
+    </svg>
+    <div>
+      <div class="logo-text">BBN IntelliStock</div>
+      <div class="logo-sub">Barbeque Nation · AI Inventory</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="outlet-tag">📍 Indiranagar, Bengaluru</div>
+    <div class="live-dot"><span class="dot"></span>LIVE</div>
+    <div style="font-size:11px;color:var(--muted);font-family:var(--mono)" id="clock"></div>
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle theme" id="theme-icon">☀</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="left-panel">
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric-card">
+        <div class="metric-label">Waste Today</div>
+        <div class="metric-val" style="color:var(--danger)" id="waste-pct">3.2%</div>
+        <div class="metric-delta up">▲ 0.4% vs yesterday</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">At-Risk Items</div>
+        <div class="metric-val" style="color:var(--warn)" id="atrisk-count">5</div>
+        <div class="metric-delta neutral">↳ needs attention</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Saved This Month</div>
+        <div class="metric-val" style="color:var(--success)">₹42,800</div>
+        <div class="metric-delta down">▼ waste cost vs target</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Covers Today</div>
+        <div class="metric-val" id="covers-val">284</div>
+        <div class="metric-delta neutral">est. 310 by close</div>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div>
+      <div class="sec-hdr" style="margin-bottom:10px">
+        <div class="sec-title">Smart Alerts</div>
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('all')">All</button>
+          <button class="tab" onclick="switchTab('critical')">Critical</button>
+          <button class="tab" onclick="switchTab('waste')">Waste</button>
+        </div>
+      </div>
+      <div class="alert-list" id="alert-list">
+        <div class="alert-item crit">
+          <div class="alert-icon">🔴</div>
+          <div class="alert-text crit"><strong>Chicken Tikka: Overstock Risk</strong>Predicted consumption 12 kg, current stock 31 kg. Suggest reducing by 40% — expected saving ₹2,100.</div>
+        </div>
+        <div class="alert-item warn">
+          <div class="alert-icon">🟡</div>
+          <div class="alert-text warn"><strong>Paneer Makhani: Reorder Needed</strong>Stock will hit zero in ~2.3 hrs at current consumption rate. Trigger vendor call now.</div>
+        </div>
+        <div class="alert-item warn">
+          <div class="alert-icon">🟡</div>
+          <div class="alert-text warn"><strong>Prawn Koliwada: Expiry Alert</strong>Batch received 2 days ago. Must be consumed or marked down in next 4 hours.</div>
+        </div>
+        <div class="alert-item info">
+          <div class="alert-icon">🔵</div>
+          <div class="alert-text info"><strong>Weekend Pattern Detected</strong>Friday covers typically 38% higher. AI suggests pre-ordering 15 kg extra lamb + 8 kg extra fish fillet.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div>
+      <div class="sec-hdr" style="margin-bottom:10px">
+        <div class="sec-title">Live Inventory</div>
+        <div class="sec-actions">
+          <button class="btn btn-success" onclick="autoReorder()">⚡ Auto-Reorder Critical</button>
+          <button class="btn btn-primary" onclick="openAnalysis()">🤖 Full AI Analysis</button>
+        </div>
+      </div>
+      <div class="inv-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Current Stock</th>
+              <th>Predicted Use</th>
+              <th>Waste Risk</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="inv-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-title">Waste Trend — Last 7 Days</div>
+        <div class="chart-sub">kg wasted per day across all categories</div>
+        <div style="position:relative;height:180px"><canvas id="wasteChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Waste by Category</div>
+        <div class="chart-sub">today's distribution</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px" id="cat-legend"></div>
+        <div style="position:relative;height:150px"><canvas id="catChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Panel -->
+  <div class="right-panel">
+    <div class="ai-header">
+      <div>
+        <div class="ai-title">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="var(--amber)" stroke-width="1.2"/><path d="M5 8.5C5.8 9.8 10 10 11 8.5M6 6.5C6 6.8 5.7 7 5.5 7C5.2 7 5 6.8 5 6.5C5 6.2 5.2 6 5.5 6C5.7 6 6 6.2 6 6.5ZM11 6.5C11 6.8 10.7 7 10.5 7C10.2 7 10 6.8 10 6.5C10 6.2 10.2 6 10.5 6C10.7 6 11 6.2 11 6.5Z" stroke="var(--amber)" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Sous-AI Assistant
+          <span class="ai-badge">POWERED BY CLAUDE</span>
+        </div>
+        <div class="ai-model" style="margin-top:2px">claude-sonnet-4-20250514 · inventory context loaded</div>
+      </div>
+      <button class="btn" style="font-size:10px;padding:4px 10px" onclick="clearChat()">Clear</button>
+    </div>
+    
+    <div class="chat-msgs" id="chat-msgs">
+      <div class="msg ai">
+        <div class="msg-role">Sous-AI</div>
+        <div class="msg-bubble">Good evening! I've analyzed today's inventory for the Indiranagar outlet. I see 5 at-risk items — Chicken Tikka is significantly overstocked. Want me to suggest a drawdown plan, or should I start with the reorder priorities?</div>
+      </div>
+    </div>
+    
+    <div class="chat-input-wrap">
+      <div class="quick-actions">
+        <button class="quick-btn" onclick="sendQuick('What should I reduce portions on tonight?')">Reduce portions?</button>
+        <button class="quick-btn" onclick="sendQuick('Predict tomorrow\\'s requirements based on weekend patterns')">Weekend forecast</button>
+        <button class="quick-btn" onclick="sendQuick('Which items are safe to add to Happy Hour discounts to reduce waste?')">Happy Hour items</button>
+        <button class="quick-btn" onclick="sendQuick('Give me a cost breakdown of today\\'s waste so far')">Cost breakdown</button>
+      </div>
+      <div class="input-row">
+        <input type="text" class="chat-inp" id="chat-inp" placeholder="Ask anything about the inventory..." onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="send-btn" id="send-btn" onclick="sendMsg()">→</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕ Close</button>
+    <div class="modal-title">🤖 Full AI Analysis Report</div>
+    <div class="modal-sub">Generated: <span id="modal-time"></span> · Indiranagar Outlet · Today</div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const INVENTORY = [
+  { name:"Chicken Tikka", cat:"Grill — Non Veg", stock:31, unit:"kg", predicted:12, expiry:"Fresh", risk:"CRITICAL", trend:-0.38 },
+  { name:"Paneer Makhani", cat:"Curry — Veg", stock:4.2, unit:"kg", predicted:9, expiry:"OK", risk:"LOW", trend:0.12 },
+  { name:"Prawn Koliwada", cat:"Starter — Seafood", stock:8, unit:"kg", predicted:6, expiry:"2hr left", risk:"WARN", trend:0.08 },
+  { name:"Mutton Rogan Josh", cat:"Curry — Non Veg", stock:14, unit:"kg", predicted:11, expiry:"OK", risk:"OK", trend:-0.05 },
+  { name:"Pineapple Sheera", cat:"Dessert", stock:22, unit:"portions", predicted:9, expiry:"OK", risk:"CRITICAL", trend:-0.52 },
+  { name:"Fish Koliwada", cat:"Grill — Seafood", stock:7, unit:"kg", predicted:8, expiry:"OK", risk:"LOW", trend:0.15 },
+  { name:"Dal Makhani", cat:"Curry — Veg", stock:18, unit:"kg", predicted:14, expiry:"OK", risk:"OK", trend:0.02 },
+  { name:"Veg Seekh Kebab", cat:"Grill — Veg", stock:19, unit:"kg", predicted:7, expiry:"Fresh", risk:"WARN", trend:-0.22 },
+  { name:"Vanilla Ice Cream", cat:"Dessert", stock:12, unit:"L", predicted:10, expiry:"OK", risk:"OK", trend:0.05 },
+  { name:"Lamb Chops", cat:"Grill — Non Veg", stock:9, unit:"kg", predicted:9, expiry:"OK", risk:"OK", trend:0.01 },
+];
+
+function renderTable() {
+  const tbody = document.getElementById('inv-tbody');
+  tbody.innerHTML = INVENTORY.map((item, i) => {
+    const pct = Math.min(100, Math.round(item.stock / Math.max(item.predicted, item.stock) * 100));
+    const color = item.risk === 'CRITICAL' ? '#e04545' : item.risk === 'WARN' ? '#e8a020' : item.risk === 'LOW' ? '#4a9ade' : '#4aba7a';
+    const badgeCls = item.risk === 'CRITICAL' ? 'badge-crit' : item.risk === 'WARN' ? 'badge-warn' : 'badge-ok';
+    const badgeLabel = item.risk === 'LOW' ? 'REORDER' : item.risk;
+    const surplus = item.stock - item.predicted;
+    const expTag = item.expiry !== 'OK' && item.expiry !== 'Fresh' ? `<span style="font-size:10px;color:var(--danger);font-family:var(--mono)">⏱ ${item.expiry}</span>` : '';
+    return `<tr>
+      <td><div class="item-name">${item.name}</div><div class="item-cat">${item.cat}</div>${expTag}</td>
+      <td>
+        <div class="stock-bar-wrap">
+          <div class="stock-bar"><div class="stock-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span class="stock-val">${item.stock} ${item.unit}</span>
+        </div>
+      </td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted2)">${item.predicted} ${item.unit}</td>
+      <td>
+        <span class="badge ${badgeCls}"><span class="badge-dot"></span>${badgeLabel}</span>
+        ${surplus > 2 ? `<div style="font-size:10px;color:var(--danger);font-family:var(--mono);margin-top:3px">+${surplus} ${item.unit} surplus</div>` : ''}
+      </td>
+      <td>
+        <div style="font-size:11px;font-family:var(--mono);color:${item.trend < -0.1 ? 'var(--danger)' : item.trend > 0.08 ? 'var(--info)' : 'var(--muted)'}">${item.trend < 0 ? '▼' : '▲'} ${Math.abs(Math.round(item.trend*100))}% vs avg</div>
+      </td>
+      <td><button class="action-btn" onclick="itemAction(${i})">${item.risk==='CRITICAL'||item.risk==='WARN'?'↓ Reduce':'✓ Reorder'}</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function itemAction(i) {
+  const item = INVENTORY[i];
+  if (item.risk === 'CRITICAL' || item.risk === 'WARN') {
+    INVENTORY[i].stock = Math.max(item.predicted, item.stock * 0.6);
+    showToast(`↓ ${item.name} stock adjusted to ${INVENTORY[i].stock.toFixed(1)} ${item.unit}`);
+    if (item.risk === 'CRITICAL') { INVENTORY[i].risk = 'WARN'; } else { INVENTORY[i].risk = 'OK'; }
+  } else {
+    showToast(`📦 Reorder triggered for ${item.name}`);
+  }
+  renderTable();
+  updateMetrics();
+}
+
+function updateMetrics() {
+  const crit = INVENTORY.filter(x => x.risk === 'CRITICAL' || x.risk === 'LOW' || x.risk === 'WARN').length;
+  document.getElementById('atrisk-count').textContent = crit;
+}
+
+function renderCharts() {
+  const isDark = !document.body.classList.contains('light');
+  const gridColor = isDark ? 'rgba(255,200,100,0.08)' : 'rgba(160,100,20,0.08)';
+  const textColor = isDark ? '#8a8070' : '#7a6a50';
+
+  new Chart(document.getElementById('wasteChart'), {
+    type: 'line',
+    data: {
+      labels: ['Mon','Tue','Wed','Thu','Fri','Sat','Today'],
+      datasets: [{
+        label: 'Kg Wasted',
+        data: [18, 14, 21, 16, 28, 24, 11],
+        borderColor: '#e8a020', backgroundColor: 'rgba(232,160,32,0.08)',
+        tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#e8a020',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'IBM Plex Mono', size: 10 } } },
+        y: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'IBM Plex Mono', size: 10 } } }
+      }
+    }
+  });
+
+  const catData = [38, 24, 18, 12, 8];
+  const catLabels = ['Non-Veg Grill','Veg Curry','Desserts','Seafood','Other'];
+  const colors = ['#e04545','#e8a020','#4a9ade','#4aba7a','#8a8070'];
+  
+  const legend = document.getElementById('cat-legend');
+  legend.innerHTML = catLabels.map((l,i) => `<span style="display:flex;align-items:center;gap:4px;font-size:10px;font-family:IBM Plex Mono;color:var(--muted2)"><span style="width:8px;height:8px;border-radius:2px;background:${colors[i]};flex-shrink:0"></span>${l} ${catData[i]}%</span>`).join('');
+
+  new Chart(document.getElementById('catChart'), {
+    type: 'doughnut',
+    data: { labels: catLabels, datasets: [{ data: catData, backgroundColor: colors, borderWidth: 0, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, cutout: '65%' }
+  });
+}
+
+// Clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+setInterval(updateClock, 1000); updateClock();
+
+// Theme
+let dark = true;
+function toggleTheme() {
+  dark = !dark;
+  document.body.classList.toggle('light', !dark);
+  document.getElementById('theme-icon').textContent = dark ? '☀' : '☾';
+}
+
+// Toast
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Tabs
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// Auto-reorder
+function autoReorder() {
+  const critItems = INVENTORY.filter(x => x.risk === 'CRITICAL' || x.risk === 'LOW');
+  showToast(`📦 Auto-reorder triggered for ${critItems.length} items — vendor notifications sent!`);
+  critItems.forEach(item => {
+    if (item.risk === 'LOW') item.risk = 'OK';
+  });
+  renderTable(); updateMetrics();
+}
+
+// Analysis Modal
+function openAnalysis() {
+  document.getElementById('modal-time').textContent = new Date().toLocaleTimeString('en-IN');
+  document.getElementById('modal-content').innerHTML = `
+    <div class="reco-item">
+      <div class="reco-item-title">🔴 Chicken Tikka — Reduce Tonight's Prep <span class="saving-tag">Save ₹2,100</span></div>
+      <div class="reco-item-body">Current: 31 kg | Predicted: 12 kg | Surplus: 19 kg<br>Recommend: Halt grill batch for next 45 min. Redirect surplus to staff meal and community donation partner. Adjust tomorrow's order to 14 kg.</div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-item-title">🟡 Pineapple Sheera — Portion Reduction <span class="saving-tag">Save ₹880</span></div>
+      <div class="reco-item-body">22 portions available, only 9 predicted. Suggest: offer as complimentary dessert add-on for tables of 4+ to clear stock. Reduces waste cost while improving guest NPS.</div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-item-title">🟡 Prawn Koliwada — Priority Promotion <span class="saving-tag">Save ₹1,400</span></div>
+      <div class="reco-item-body">Expiry pressure in 4 hrs. Suggest waiter upsell push and live grill feature slot in next 30 min. If unsold, initiate chef's special combo at 20% discount before 9 PM.</div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-item-title">🔵 Weekend Pattern — Pre-Order Now <span class="saving-tag">Prevent ₹6,200 shortfall</span></div>
+      <div class="reco-item-body">Friday & Saturday covers average 38% higher. AI recommends ordering: +15 kg Lamb, +8 kg Fish Fillet, +20 kg Paneer, +6 kg Prawns by 6 PM today to ensure delivery by tomorrow morning.</div>
+    </div>
+    <div class="reco-item">
+      <div class="reco-item-title">✅ Optimized Items — No Action Needed</div>
+      <div class="reco-item-body">Dal Makhani, Vanilla Ice Cream, Lamb Chops, Mutton Rogan Josh, and Fish Koliwada are within ±15% of predicted consumption. Well managed!</div>
+    </div>
+    <div style="margin-top:16px;padding:12px 16px;background:rgba(74,186,122,0.08);border:1px solid rgba(74,186,122,0.2);border-radius:10px">
+      <div style="font-size:12px;color:var(--success);font-family:var(--mono);font-weight:600">TOTAL POTENTIAL SAVING TODAY: ₹10,580</div>
+      <div style="font-size:11px;color:var(--muted2);margin-top:4px">Projected end-of-day waste: 8.3 kg (target: &lt;10 kg) · Waste cost: ₹3,200 (target: &lt;₹4,000)</div>
+    </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+// Chat / AI
+const SYSTEM_PROMPT = `You are Sous-AI, the intelligent inventory assistant for Barbeque Nation's Indiranagar outlet in Bengaluru. You are an expert in F&B inventory management, food waste reduction, and buffet operations.
+
+Current inventory snapshot:
+- Chicken Tikka: 31 kg on hand, predicted use 12 kg tonight → HIGH SURPLUS RISK
+- Paneer Makhani: 4.2 kg on hand, predicted use 9 kg → REORDER NEEDED
+- Prawn Koliwada: 8 kg, expiry pressure in 4 hrs → URGENT
+- Mutton Rogan Josh: 14 kg, predicted 11 kg → OK
+- Pineapple Sheera: 22 portions, predicted 9 → HIGH SURPLUS
+- Fish Koliwada: 7 kg, predicted 8 kg → slight understock
+- Dal Makhani: 18 kg, predicted 14 kg → OK
+- Veg Seekh Kebab: 19 kg, predicted 7 kg → WARN
+- Vanilla Ice Cream: 12L, predicted 10L → OK
+- Lamb Chops: 9 kg, predicted 9 kg → OK
+
+Today's covers: 284, estimated 310 by close.
+Waste today so far: 3.2% (target <3%).
+Cost saved this month via AI: ₹42,800.
+It is dinner service, Friday evening.
+
+Respond in a concise, actionable, restaurant-ops tone. Give specific kg/cost numbers. Keep replies under 120 words unless asked for detail.`;
+
+let chatHistory = [];
+let aiThinking = false;
+
+async function sendMsg() {
+  if (aiThinking) return;
+  const inp = document.getElementById('chat-inp');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  appendMsg('user', text);
+  chatHistory.push({ role: 'user', content: text });
+  await callAI();
+}
+
+function sendQuick(text) {
+  document.getElementById('chat-inp').value = text;
+  sendMsg();
+}
+
+function appendMsg(role, text) {
+  const msgs = document.getElementById('chat-msgs');
+  const div = document.createElement('div');
+  div.className = `msg ${role === 'user' ? 'user' : 'ai'}`;
+  div.innerHTML = `<div class="msg-role">${role === 'user' ? 'You' : 'Sous-AI'}</div><div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  const msgs = document.getElementById('chat-msgs');
+  const div = document.createElement('div');
+  div.className = 'msg ai'; div.id = 'typing-indicator';
+  div.innerHTML = `<div class="msg-role">Sous-AI</div><div class="msg-bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+async function callAI() {
+  aiThinking = true;
+  document.getElementById('send-btn').disabled = true;
+  showTyping();
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        system: SYSTEM_PROMPT,
+        messages: chatHistory
+      })
+    });
+    const data = await resp.json();
+    const reply = data.content?.[0]?.text || "Sorry, I couldn't process that right now.";
+    removeTyping();
+    appendMsg('ai', reply);
+    chatHistory.push({ role: 'assistant', content: reply });
+  } catch(e) {
+    removeTyping();
+    appendMsg('ai', "Connection issue — but based on current data: focus on Chicken Tikka drawdown (19 kg surplus) and Prawn Koliwada (expiry in 4 hrs). Recommend waiter upsell push now.");
+    chatHistory.push({ role: 'assistant', content: 'Fallback response provided.' });
+  }
+  aiThinking = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function clearChat() {
+  chatHistory = [];
+  const msgs = document.getElementById('chat-msgs');
+  msgs.innerHTML = `<div class="msg ai"><div class="msg-role">Sous-AI</div><div class="msg-bubble">Chat cleared. Ready to help with your inventory! What do you need?</div></div>`;
+}
+
+// Init
+renderTable();
+renderCharts();
+</script>
+</body>
+</html>
